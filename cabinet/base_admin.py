@@ -1,5 +1,6 @@
 from urllib.parse import urlencode
 
+import django
 from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin import helpers
@@ -30,23 +31,26 @@ class FolderListFilter(admin.RelatedFieldListFilter):
 
     def queryset(self, request, queryset):
         if "q" in request.GET:
-            folder = self.used_parameters.get("folder__id__exact")
-            if folder:
+            if folder_id := self.used_parameters.get("folder__id__exact"):
+                if django.VERSION > (5,):
+                    folder_id = folder_id[0]
                 return queryset.filter(
                     # Avoid problems because of table aliasses (Django 1.11)
                     folder__in=list(
                         Folder.objects.descendants(
-                            folder, include_self=True
+                            folder_id, include_self=True
                         ).values_list("id", flat=True)
                     )
                 )
             return queryset
 
-        if self.used_parameters:
+        if folder_id := self.used_parameters.get("folder__id__exact"):
+            if django.VERSION > (5,):
+                folder_id = folder_id[0]
             try:
-                return queryset.filter(**self.used_parameters)
+                return queryset.filter(folder=folder_id)
             except ValidationError as e:
-                raise IncorrectLookupParameters(e)
+                raise IncorrectLookupParameters(e) from e
         else:
             return queryset.none()  # No files in root folder, never.
 
@@ -180,7 +184,7 @@ class FolderAdminMixin(admin.ModelAdmin):
         else:
             form = FolderForm(**kw)
 
-        adminForm = helpers.AdminForm(
+        admin_form = helpers.AdminForm(
             form,
             [[None, {"fields": list(form.fields.keys())}]],
             {},
@@ -195,12 +199,12 @@ class FolderAdminMixin(admin.ModelAdmin):
                 self.admin_site.each_context(request),
                 title=(_("Add %s") if add else _("Change %s"))
                 % Folder._meta.verbose_name,
-                adminform=adminForm,
+                adminform=admin_form,
                 inline_admin_formsets=[],
                 object_id=original.pk if original else None,
                 original=original,
                 is_popup=False,
-                media=self.media + adminForm.media,
+                media=self.media + admin_form.media,
                 errors=helpers.AdminErrorList(form, []),
                 preserve_filters=self.get_preserved_filters(request),
                 cabinet={"querystring": cabinet_querystring(request)},
@@ -248,7 +252,9 @@ class FolderAdminMixin(admin.ModelAdmin):
 
     def redirect_to_folder(self, request, folder_id):
         info = self.model._meta.app_label, self.model._meta.model_name
-        url = reverse("admin:%s_%s_changelist" % info, current_app=self.admin_site.name)
+        url = reverse(
+            "admin:{}_{}_changelist".format(*info), current_app=self.admin_site.name
+        )
         querydict = [
             (key, value)
             for key, value in request.GET.items()
@@ -263,8 +269,7 @@ class FolderAdminMixin(admin.ModelAdmin):
     @admin.action(description=_("Move files to folder"))
     def move_to_folder(self, request, queryset):
         return HttpResponseRedirect(
-            "%s?%s"
-            % (
+            "{}?{}".format(
                 reverse(
                     "admin:cabinet_folder_select", current_app=self.admin_site.name
                 ),
@@ -287,7 +292,7 @@ class FolderAdminMixin(admin.ModelAdmin):
             self.message_user(request, _("The files have been successfully moved."))
             return self.redirect_to_folder(request, folder.id)
 
-        adminForm = helpers.AdminForm(
+        admin_form = helpers.AdminForm(
             form,
             [[None, {"fields": list(form.fields.keys())}]],
             {},
@@ -300,12 +305,12 @@ class FolderAdminMixin(admin.ModelAdmin):
             dict(
                 self.admin_site.each_context(request),
                 title=_("Move files to folder"),
-                adminform=adminForm,
+                adminform=admin_form,
                 inline_admin_formsets=[],
                 object_id=None,
                 original=None,
                 is_popup=False,
-                media=self.media + adminForm.media,
+                media=self.media + admin_form.media,
                 errors=helpers.AdminErrorList(form, []),
                 preserve_filters=self.get_preserved_filters(request),
                 cabinet={"querystring": cabinet_querystring(request)},
