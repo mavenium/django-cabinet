@@ -82,10 +82,18 @@ django.jQuery(function ($) {
         data: d,
         contentType: false,
         processData: false,
-        success: function () {
+        success: function (data) {
           progress.html("" + ++success + " / " + files.length)
           if (success >= files.length) {
-            window.location.reload()
+            window.location.reload();
+          }
+        },
+        error: function (data) {
+          var r = confirm(data.responseJSON['success']);
+          if (r == true) {
+              window.location.reload();
+          } else {
+              window.location.reload();
           }
         },
         xhr: function () {

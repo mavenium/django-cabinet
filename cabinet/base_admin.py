@@ -496,11 +496,14 @@ class FileAdminBase(FolderAdminMixin):
         if not form.is_valid():
             return JsonResponse({"success": False}, status=400)
 
-        f = self.model(folder=form.cleaned_data["folder"])
-        f.file = form.cleaned_data["file"]
-        f.save()
+        try:
+            f = self.model(folder=form.cleaned_data["folder"])
+            f.file = form.cleaned_data["file"]
+            f.save()
 
-        return JsonResponse({"success": True, "pk": f.pk, "name": str(f)})
+            return JsonResponse({"success": True, "pk": f.pk, "name": str(f)})
+        except Exception as e:
+            return JsonResponse({"success": e.messages[-1]}, status=400)
 
     top_fields = ["folder", "caption", "copyright"]
     advanced_fields = ["_overwrite"]
