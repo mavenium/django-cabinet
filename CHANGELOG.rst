@@ -4,6 +4,22 @@ Change log
 Next version
 ~~~~~~~~~~~~
 
+- Added a Turkish translation. Thanks @mcihad!
+- Added the ``extra_context`` argument to our ``changelist_view``. Thanks
+  @underdoeg!
+
+
+0.14 (2024-02-02)
+~~~~~~~~~~~~~~~~~
+
+- Added Django 5.0, Python 3.12.
+- Updated the pre-commit hooks and added ESLint again (it was inadvertently
+  dropped).
+- Dropped the unique constraint on folder name per subfolder. Duplicate names
+  are a minor issue compared to the integrity errors which happen while loading
+  fixtures.
+
+
 0.13 (2023-07-21)
 ~~~~~~~~~~~~~~~~~
 
